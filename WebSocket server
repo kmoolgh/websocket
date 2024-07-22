@@ -1,0 +1,49 @@
+import tornado.ioloop  
+import tornado.web  
+import tornado.websocket  
+import json  
+
+clients = []  
+
+class MainHandler(tornado.web.RequestHandler):  
+    def get(self):  
+        self.write('<h1>WebSocket Test</h1>')  
+        self.write('<button onclick="connect()">Connect</button>')  
+        self.write('''<script>  
+            var ws;  
+            function connect() {  
+                ws = new WebSocket("ws://localhost:8888/ws");  
+                ws.onmessage = function(event) {  
+                    var message = JSON.parse(event.data);  
+                    alert(message.data);  
+                };  
+                ws.onopen = function() {  
+                    ws.send(JSON.stringify({"data": "سلام!"}));  
+                };  
+            }  
+        </script>''')  
+
+class WebSocketHandler(tornado.websocket.WebSocketHandler):  
+    def open(self):  
+        clients.append(self)  
+        print("New connection opened")  
+
+    def on_message(self, message):  
+        print("Received message: {}".format(message))  
+        for client in clients:  
+            client.write_message(message)  # ارسال پیام به همه کلاینت‌ها  
+
+    def on_close(self):  
+        clients.remove(self)  
+        print("Connection closed")  
+
+def make_app():  
+    return tornado.web.Application([  
+        (r"/", MainHandler),  
+        (r"/ws", WebSocketHandler),  
+    ])  
+
+if __name__ == "__main__":  
+    app = make_app()  
+    app.listen(8888)  
+    tornado.ioloop.IOLoop.current().start()  
